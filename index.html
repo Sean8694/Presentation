@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Communication Patterns - 消息传递机制</title>
+
+		<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+		<meta name="author" content="Hakim El Hattab">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/default.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+		<script>
+			if( window.location.search.match( /print-pdf/gi ) ) {
+				var link = document.createElement( 'link' );
+				link.rel = 'stylesheet';
+				link.type = 'text/css';
+				link.href = 'css/print/pdf.css';
+				document.getElementsByTagName( 'head' )[0].appendChild( link );
+			}
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+				<section data-transition="fade" data-markdown>
+					<script type="text/template">
+						### Communication Patterns
+						### 消息传递机制
+					</script>
+				</section>
+				<section data-transition="fade" data-markdown>
+					<script type="text/template">
+						### 几种消息传递机制
+						* Delegate
+						* Notification
+						* Block
+						* Target-Action
+						* KVO
+					</script>
+				</section>
+				<section data-transition="linear">
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Delegate特点_(1)_
+							发送者只需要知道接收者符合一定的协议，所以两者结合很松
+							```objc
+							也许发送者只知道接收者接口
+							例: 使用UIScrollViewDelegate监听UIScrollView滚动状态
+							- (void)scrollViewDidScroll:(UIScrollView *)scrollView;
+
+
+							往往，我们使接收者也知道发送者
+							例: UITableView作为UIViewController的成员属性，以便于配置数据及操作
+							self.tableView.delegate = self;
+							```
+							关键在于:    __缺少容器__
+							```objc
+							sender.delegate = receiver;
+							谁实现了这句话，谁就"知道的太多了"...
+							不利于消息"远距离传输"
+							```
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Delegate特点_(2)_
+							1对1  
+							![alt text](images/delegate_intro1.jpg "1v1")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Delegate特点_(3)_
+							方法名可以描述功能，传递参数明确，语义清晰
+							```objc
+							UIScrollViewDelegate
+
+							- (void)scrollViewDidScroll:(UIScrollView *)scrollView;
+							- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView;
+							- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate;
+							- (void)scrollViewDidScrollToTop:(UIScrollView *)scrollView;
+							```
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Delegate特点_(4)_
+							可以有返回参数，给发送者做出回应
+							```objc
+							UITableViewDataSource
+
+							- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section;
+							- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath;
+							```
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Delegate小结
+							* 确保发送者和接收者可以独立工作，否则会有风险。
+							* 发送者只需要知道接收者符合一定的协议。
+							* 发送者与接收者是一一对应的。
+							* 发送内容及参数明确，语义清晰。
+							* 可以有返回值给发送者，作为回应。
+							* 两者不宜相隔很远的模块之间消息传递。
+							* 结构松散，两者耦合度比较低。
+						</script>
+					</section>
+				</section>
+				<section data-transition="linear">
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Notification特点_(1)_
+							标准的观察者模式，发送者根本不知道接收者  
+							两者可以相隔非常远
+							```objc
+							UIKIT_EXTERN NSString *const UIApplicationDidEnterBackgroundNotification;
+							UIKIT_EXTERN NSString *const UIApplicationWillEnterForegroundNotification;
+							UIKIT_EXTERN NSString *const UIApplicationDidFinishLaunchingNotification;
+							UIKIT_EXTERN NSString *const UIApplicationDidBecomeActiveNotification;
+							UIKIT_EXTERN NSString *const UIApplicationWillResignActiveNotification;
+							UIKIT_EXTERN NSString *const UIApplicationWillTerminateNotification;
+							... ...
+							```
+							https://gist.github.com/hpique/7554209
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Notification特点_(2)_
+							一个发送者对应多个接收者
+							![alt text](images/notification_intro1.png "1vN")  
+							_《Head First设计模式》_
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Notification特点_(3)_
+							触发事件靠字符串描述，传递参数不明确  
+							无法返回参数告知消息发送者
+							```objc
+							UIKIT_EXTERN NSString *const UIKeyboardWillShowNotification;
+							UIKIT_EXTERN NSString *const UIKeyboardDidShowNotification; 
+							UIKIT_EXTERN NSString *const UIKeyboardWillHideNotification; 
+							UIKIT_EXTERN NSString *const UIKeyboardDidHideNotification;
+							```
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Notification小结
+							* 标准的观察者模式，发送者根本不知道接收者
+							* 一个发送者对应多个接收者
+							* 触发事件靠字符串描述，传递参数不明确
+							* 无法返回参数告知消息发送者
+							* 两者可以相隔非常远
+							* 结构非常松散，两者耦合度低
+						</script>
+					</section>
+				</section>
+				<section data-transition="linear">
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Block特点_(1)_
+							通常可以替代Delegate消息传递方式，比使用Delegate更加方便  
+							但是容易产生循环引用
+							```objc
+							self.myTableView.selectionHandler = ^void(NSIndexPath *selectedIndexPath) {
+							    // 处理选择
+							};
+
+							self->tableView->handler-?>self
+							```
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Block特点_(1)_续
+							处理不当可能会循环引用  
+							```objc
+							self.queue = [[NSOperationQueue alloc] init];
+							MyOperation *operation = [[MyOperation alloc] init];
+							operation.completionBlock = ^{
+								[self finishedOperation];
+							};
+							[self.queue addOperation:operation];
+							```
+							必须要记得将operation从queue中移除。
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Block特点_(2)_
+							代码实现的位置会更易理解  
+							```objc
+							AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
+							[manager GET:@"http://example.com/resources.json" parameters:nil success:^(AFHTTPRequestOperation *operation, id responseObject) {
+								NSLog(@"JSON: %@", responseObject);
+							} failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+								NSLog(@"Error: %@", error);
+							}];
+							```
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Block小结
+							* 比使用Delegate更加方便
+							* 容易产生循环引用
+							* 代码实现的位置会更易理解
+						</script>
+					</section>
+				</section>
+				<section data-transition="linear">
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Target-Action特点_(1)_
+							Target-Action 是回应 UI 事件时典型的消息传递方式  
+							```objc
+							[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(doSomething)];
+							```
+							消息的接收者不知道发送者，甚至消息的发送者也不知道消息的接收者会是什么
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Target-Action特点_(2)_
+							如果 target 是 nil，action 会在响应链 (responder chain) 中被传递下去，直到找到一个响应它的对象  
+							![alt text](images/target_action_intro1.png "responder chain")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Target-Action小结
+							* 一般不会用
+							* UI 事件时典型的消息传递方式
+							* 消息的接收者不知道发送者，甚至消息的发送者也不知道消息的接收者会是什么
+							* 如果 target 是 nil，action 会在响应链 (responder chain) 中被传递下去，直到找到一个响应它的对象
+						</script>
+					</section>
+				</section>
+				<section data-transition="linear">
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### KVO特点_(1)_
+							KVO 是提供对象属性被改变时的通知的机制  
+							```objc
+							[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(doSomething)];
+							```
+							消息的接收者不知道发送者，甚至消息的发送者也不知道消息的接收者会是什么
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Target-Action特点_(2)_
+							如果 target 是 nil，action 会在响应链 (responder chain) 中被传递下去，直到找到一个响应它的对象  
+							![alt text](images/target_action_intro1.png "responder chain")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### Target-Action小结
+							* 一般不会用
+							* UI 事件时典型的消息传递方式
+							* 消息的接收者不知道发送者，甚至消息的发送者也不知道消息的接收者会是什么
+							* 如果 target 是 nil，action 会在响应链 (responder chain) 中被传递下去，直到找到一个响应它的对象
+						</script>
+					</section>
+				</section>
+				<section data-transition="linear">
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### 做出正确的选择
+							流程图的建议不代表最终答案  
+							![alt text](images/choice_1.png "choice1")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### 做出正确的选择
+							Table view 的 delegate  
+							![alt text](images/choice_2.png "choice2")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### 做出正确的选择
+							Core Data 使用 notification 传递事件  
+							![alt text](images/choice_3.png "choice3")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### 做出正确的选择
+							-[NSURLSession dataTaskWithURL:completionHandler:] 来作为一个 block API  
+							![alt text](images/choice_4.png "choice4")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### 做出正确的选择
+							target-action 是 UI 中消息传递的最佳选择  
+							![alt text](images/choice_5.png "choice5")
+						</script>
+					</section>
+					<section data-transition="linear" data-markdown>
+						<script type="text/template">
+							### 做出正确的选择
+							NSOperationQueue 用了 KVO 观察队列中的 operation 状态属性的改变情况  
+							![alt text](images/choice_6.png "choice6")
+						</script>
+					</section>
+				</section>
+				<section>
+					<h1>谢谢</h1>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Parallax scrolling
+				// parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+				// parallaxBackgroundSize: '2100px 900px',
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
